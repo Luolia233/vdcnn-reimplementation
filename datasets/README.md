@@ -18,4 +18,4 @@ such as:
 
 /raw/yahoo_answers
 
-/raw/imdb.tar
+/raw/imdb
