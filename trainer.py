@@ -9,8 +9,7 @@ from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from datasets import LoadData
-from trainer.vcdnn import VDCNN
-from trainer import run
+from network.vdcnn import VDCNN
 
 from utils.nn_tools import *
 

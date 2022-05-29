@@ -21,17 +21,20 @@ class TextDataset(object):
 
     def __init__(self,data_name):
         self.data_name = data_name
-        self.data_folder = "datasets/raw/{}".format(self.data_name)
+        self.data_folder = "datasets/{}/raw".format(self.data_name)
         self.n_classes = n_classes[self.data_name]        
 
         # 检查数据集
         if os.path.exists(self.data_folder):
             for f in ["classes.txt", "readme.txt", "test.csv", "train.csv"]:
                 if not os.path.exists(os.path.join(self.data_folder, f)):
-                    print("please put {} raw dataset into {}".format(self.data_name,self.data_folder))
+                    for file in os.listdir(self.data_folder):
+                        if os.path.splitext(file)[-1] == ".gz":
+                            print("yes")
+                            raise Exception("test yes")
+                    raise Exception("please put {} raw dataset into {}".format(self.data_name,self.data_folder))
         else:
-            print("please put {} raw dataset into {}".format(self.data_name,self.data_folder))
-
+            raise Exception("please put {} raw dataset into {}".format(self.data_name,self.data_folder))
     def _generator(self, filename):
         if self.data_name == "imdb":
             with open(filename, mode='r', encoding='utf-8') as f:
@@ -158,19 +161,19 @@ class TupleLoader(Dataset):
 
 
 def LoadData(dataset,data_folder,maxlen):
-    dataset = load_datasets(names=[opt.dataset])[0]
+    dataset = load_datasets(names=[dataset])[0]
     dataset_name = dataset.__class__.__name__
     n_classes = dataset.n_classes
     print("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
 
-    tr_path =  "{}/train.lmdb".format(opt.data_folder)
-    te_path = "{}/test.lmdb".format(opt.data_folder)
+    tr_path =  "{}/train.lmdb".format(data_folder)
+    te_path = "{}/test.lmdb".format(data_folder)
     
     # check if datasets exis
     all_exist = True if (os.path.exists(tr_path) and os.path.exists(te_path)) else False
 
     preprocessor = Preprocessing()
-    vectorizer = CharVectorizer(maxlen=opt.maxlen, padding='post', truncating='post')
+    vectorizer = CharVectorizer(maxlen=maxlen, padding='post', truncating='post')
     n_tokens = len(vectorizer.char_dict)
 
     if not all_exist:

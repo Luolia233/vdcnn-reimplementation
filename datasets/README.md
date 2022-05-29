@@ -1,21 +1,21 @@
-/raw: to save the raw datasets , please put datesets into /raw/"dataset name"
+/raw: to save the raw datasets.tar.gz  , please put datesets into "dataset name"/raw/
 
 such as:
 
-/raw/ag_news
+ag_news/raw/xxx.tar.gz
 
-/raw/db_pedia
+db_pedia/raw/xxx.tar.gz
 
-/raw/yelp_review_full
+yelp_review_full/raw/xxx.tar.gz
 
-/raw/yelp_review_polarity
+yelp_review_polarity/raw/xxx.tar.gz
 
-/raw/amazon_review_full
+amazon_review_full/raw/xxx.tar.gz
 
-/raw/amazon_review_polarity
+amazon_review_polarity/raw/xxx.tar.gz
 
-/raw/sogou_news
+sogou_news/raw/xxx.tar.gz
 
-/raw/yahoo_answers
+yahoo_answers/raw/xxx.tar.gz
 
-/raw/imdb
+imdb/raw/xxx.tar.gz

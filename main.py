@@ -7,7 +7,7 @@
 
 import os
 import argparse
-
+from trainer import run
 
 def get_args():
     parser = argparse.ArgumentParser("""Very Deep CNN with optional residual connections (https://arxiv.org/abs/1606.01781)""")
