@@ -17,7 +17,7 @@ from utils.nn_tools import *
 
 
 
-def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,scheduler=None,criterion=None):
+def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,scheduler=None,criterion=None,list_metrics=[]):
     
     net.train() if optimize else net.eval()
 
@@ -60,7 +60,7 @@ def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,
         scheduler.step()
 
 def run(opt):
-    traindata,testdata,n_classes,n_tokens = LoadData(opt.dataset,opt.data_folder,opt.maxlen)
+    traindata,testdata,n_classes,n_tokens = LoadData(opt.dataset,opt.data_folder,opt.maxlen,opt.nthreads)
 
     tr_loader = DataLoader(traindata, batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
     te_loader = DataLoader(testdata, batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
@@ -89,7 +89,7 @@ def run(opt):
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
         
     for epoch in range(1, opt.epochs + 1):
-        train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion)
+        train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion,list_metrics=list_metrics)
         train(epoch,net, te_loader, device, msg="testing ", criterion=criterion)
 
         if (epoch % opt.snapshot_interval == 0) and (epoch > 0):

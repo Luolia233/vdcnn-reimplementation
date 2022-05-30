@@ -25,16 +25,10 @@ class TextDataset(object):
         self.n_classes = n_classes[self.data_name]        
 
         # 检查数据集
-        if os.path.exists(self.data_folder):
-            for f in ["classes.txt", "readme.txt", "test.csv", "train.csv"]:
-                if not os.path.exists(os.path.join(self.data_folder, f)):
-                    for file in os.listdir(self.data_folder):
-                        if os.path.splitext(file)[-1] == ".gz":
-                            print("yes")
-                            raise Exception("test yes")
-                    raise Exception("please put {} raw dataset into {}".format(self.data_name,self.data_folder))
-        else:
-            raise Exception("please put {} raw dataset into {}".format(self.data_name,self.data_folder))
+        if not checkdata(self.data_folder):
+            raise Exception("please put {} raw dataset.tar.gz into {}".format(self.data_name,self.data_folder))
+
+
     def _generator(self, filename):
         if self.data_name == "imdb":
             with open(filename, mode='r', encoding='utf-8') as f:
@@ -125,29 +119,39 @@ if __name__ == "__main__":
             labels.append(label)
         print(" train: (sentences,labels) = ({}/{})".format(len(sentences), len(labels)))
 
-def untar(untar_fpath,datadir,fpath):
-    if not os.path.exists(untar_fpath):
-        print('Untaring file...')
-        tfile = tarfile.open(fpath, 'r:gz')
-        try:
-            tfile.extractall(path=datadir)
-        except (Exception, KeyboardInterrupt) as e:
-            if os.path.exists(untar_fpath):
-                if os.path.isfile(untar_fpath):
-                    os.remove(untar_fpath)
-                else:
-                    shutil.rmtree(untar_fpath)
-            raise
-        tfile.close()
-    return untar_fpath
+def checkdata(data_folder):
+    if os.path.exists(data_folder):
+            for f in ["test.csv", "train.csv"]:
+                if not os.path.exists(os.path.join(data_folder, f)):
+                    for file in os.listdir(data_folder):
+                        if os.path.splitext(file)[-1] == ".gz":
+                            print("tar.gz checked")
+                            untar(data_folder,file)
+                            return True
+                    return False
+            return True
+    else:
+        return False
+def untar(targetdir,f):
+    print('Untaring file...')
+    tardir = os.path.join(targetdir, os.path.basename(f).split(".")[0])
+    tfile = tarfile.open(os.path.join(targetdir, f), 'r:gz')
+    tfile.extractall(path=targetdir)
+    tfile.close()
+    for file in os.listdir(tardir):
+        src = os.path.join(tardir, file)
+        dst = os.path.join(targetdir, file)
+        shutil.move(src, dst)
+    shutil.rmtree(tardir)
+    print("file untared")
 
 
 class TupleLoader(Dataset):
 
-    def __init__(self, path=""):
+    def __init__(self, path="",nthreads=0):
         self.path = path
 
-        self.env = lmdb.open(path, max_readers=opt.nthreads, readonly=True, lock=False, readahead=False, meminit=False)
+        self.env = lmdb.open(path, max_readers=nthreads, readonly=True, lock=False, readahead=False, meminit=False)
         self.txn = self.env.begin(write=False)
 
     def __len__(self):
@@ -160,7 +164,7 @@ class TupleLoader(Dataset):
 
 
 
-def LoadData(dataset,data_folder,maxlen):
+def LoadData(dataset,data_folder,maxlen,nthreads):
     dataset = load_datasets(names=[dataset])[0]
     dataset_name = dataset.__class__.__name__
     n_classes = dataset.n_classes
@@ -223,4 +227,4 @@ def LoadData(dataset,data_folder,maxlen):
                     txn.put(txt_key.encode(), list_to_bytes(xtxt))
 
                 txn.put('nsamples'.encode(), list_to_bytes([i+1]))
-    return TupleLoader(tr_path),TupleLoader(te_path),n_classes,n_tokens
+    return TupleLoader(tr_path,nthreads),TupleLoader(te_path,nthreads),n_classes,n_tokens
