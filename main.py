@@ -9,8 +9,11 @@ import os
 import argparse
 from trainer import run
 
+# 作用：将命令行解析成Python数据类型所需的全部信息
 def get_args():
+    # 设置解析器
     parser = argparse.ArgumentParser("""Very Deep CNN with optional residual connections (https://arxiv.org/abs/1606.01781)""")
+    # 添加参数
     parser.add_argument("--dataset", type=str, default='ag_news')
     parser.add_argument("--model_folder", type=str, default="ckpt/ag_news")
     parser.add_argument("--data_folder", type=str, default="datasets/ag_news")
@@ -27,20 +30,17 @@ def get_args():
     parser.add_argument("--gamma", type=float, default=0.9)
     parser.add_argument("--gpuid", type=int, default=0)
     parser.add_argument("--nthreads", type=int, default=4)
+    # 解析参数
     args = parser.parse_args()
     return args
 
 
-
- 
-
-
-
 if __name__ == "__main__":
-
+    # 获取参数，打印
     opt = get_args()
     print("parameters: {}".format(vars(opt)))
-    
+
+    # 创建路径用于保存模型权重信息、获取数据集。
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(opt.data_folder, exist_ok=True)
     run(opt)
