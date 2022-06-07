@@ -71,7 +71,7 @@ def run(opt):
 
 
     print("Creating model...")
-    net = VDCNN(n_classes=n_classes, num_embedding=n_tokens + 1, embedding_dim=16, depth=opt.depth, n_fc_neurons=2048, shortcut=opt.shortcut)
+    net = VDCNN(n_classes=n_classes, num_embedding=n_tokens + 1, embedding_dim=16, depth=opt.depth, shortcut=opt.shortcut)
     criterion = torch.nn.CrossEntropyLoss()
     net.to(device)
 
