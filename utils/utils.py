@@ -6,6 +6,9 @@
 """
 
 import numpy as np
+import os
+import tarfile
+import shutil
 # multiprocessing workaround
 import resource
 rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
@@ -78,3 +81,28 @@ def list_to_bytes(l):
 def list_from_bytes(string, dtype=np.int):
     return np.frombuffer(string, dtype=dtype)
 
+def checkdata(data_folder):
+    if os.path.exists(data_folder):
+            for f in ["test.csv", "train.csv"]:
+                if not os.path.exists(os.path.join(data_folder, f)):
+                    for file in os.listdir(data_folder):
+                        if os.path.splitext(file)[-1] == ".gz":
+                            print("tar.gz checked")
+                            untar(data_folder,file)
+                            return True
+                    return False
+            return True
+    else:
+        return False
+def untar(targetdir,f):
+    print('Untaring file...')
+    tardir = os.path.join(targetdir, os.path.basename(f).split(".")[0])
+    tfile = tarfile.open(os.path.join(targetdir, f), 'r:gz')
+    tfile.extractall(path=targetdir)
+    tfile.close()
+    for file in os.listdir(tardir):
+        src = os.path.join(tardir, file)
+        dst = os.path.join(targetdir, file)
+        shutil.move(src, dst)
+    shutil.rmtree(tardir)
+    print("file untared")

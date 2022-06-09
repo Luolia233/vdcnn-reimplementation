@@ -4,11 +4,9 @@
 @brief:
 """
 
-import os
+
 import sys
 import csv
-import tarfile
-import shutil
 import lmdb
 from utils.utils import *
 from tqdm import tqdm
@@ -119,31 +117,6 @@ if __name__ == "__main__":
             labels.append(label)
         print(" train: (sentences,labels) = ({}/{})".format(len(sentences), len(labels)))
 
-def checkdata(data_folder):
-    if os.path.exists(data_folder):
-            for f in ["test.csv", "train.csv"]:
-                if not os.path.exists(os.path.join(data_folder, f)):
-                    for file in os.listdir(data_folder):
-                        if os.path.splitext(file)[-1] == ".gz":
-                            print("tar.gz checked")
-                            untar(data_folder,file)
-                            return True
-                    return False
-            return True
-    else:
-        return False
-def untar(targetdir,f):
-    print('Untaring file...')
-    tardir = os.path.join(targetdir, os.path.basename(f).split(".")[0])
-    tfile = tarfile.open(os.path.join(targetdir, f), 'r:gz')
-    tfile.extractall(path=targetdir)
-    tfile.close()
-    for file in os.listdir(tardir):
-        src = os.path.join(tardir, file)
-        dst = os.path.join(targetdir, file)
-        shutil.move(src, dst)
-    shutil.rmtree(tardir)
-    print("file untared")
 
 
 class TupleLoader(Dataset):
