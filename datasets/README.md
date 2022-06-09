@@ -13,11 +13,15 @@ yelp_review_full/raw/xxx.tar.gz
 or
 
 ag_news/raw/
+
             ---train.csv
+            
             ---/test.csv
 
 db_pedia/raw/
+
             ---train.csv
+            
             ---/test.csv
 
 yelp_review_full/raw/
