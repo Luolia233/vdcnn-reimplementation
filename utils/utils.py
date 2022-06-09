@@ -23,6 +23,7 @@ class Preprocessing():
         output: list(str)
         """
         return [s.lower() for s in sentences]
+
 class CharVectorizer():
     def __init__(self, maxlen=10, padding='pre', truncating='pre', alphabet="""abcdefghijklmnopqrstuvwxyz0123456789-,;.!?:’"/| #$%ˆ&*˜‘+=<>()[]{}"""):
         
@@ -90,6 +91,7 @@ def checkdata(data_folder):
             return True
     else:
         return False
+
 def untar(targetdir,f):
     print('Untaring file...')
     tardir = os.path.join(targetdir, os.path.basename(f).split(".")[0])

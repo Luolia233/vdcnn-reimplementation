@@ -14,6 +14,7 @@ from tqdm import tqdm
 from torch.utils.data import Dataset
 #for windows
 csv.field_size_limit(min(sys.maxsize, 2147483646))
+
 n_classes = {"ag_news":4,"db_pedia":14,"yelp_review":5,"yelp_review_polarity":2,"amazon_review_full":5,"amazon_review_polarity":2,"sogou_news":5,"yahoo_answers":10,"imdb":2}
 
 
@@ -52,6 +53,22 @@ class TextDataset(object):
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
 
+class TupleData(Dataset):
+
+    def __init__(self, path="",nthreads=0):
+        self.path = path
+
+        self.env = lmdb.open(path, max_readers=nthreads, readonly=True, lock=False, readahead=False, meminit=False)
+        self.txn = self.env.begin(write=False)
+
+    def __len__(self):
+        return list_from_bytes(self.txn.get('nsamples'.encode()))[0]
+
+    def __getitem__(self, i):
+        xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
+        lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
+        return torch.tensor(xtxt), torch.tensor(lab)
+
 
 
 def load_datasets(names=["ag_news", "imdb"]):
@@ -61,7 +78,7 @@ def load_datasets(names=["ag_news", "imdb"]):
     :param names: list of string of dataset names
     :return: list of dataset object
     """
-
+    
     datasets = []
 
     if 'ag_news' in names:
@@ -85,27 +102,7 @@ def load_datasets(names=["ag_news", "imdb"]):
     return datasets
 
 
-
-
-class TupleLoader(Dataset):
-
-    def __init__(self, path="",nthreads=0):
-        self.path = path
-
-        self.env = lmdb.open(path, max_readers=nthreads, readonly=True, lock=False, readahead=False, meminit=False)
-        self.txn = self.env.begin(write=False)
-
-    def __len__(self):
-        return list_from_bytes(self.txn.get('nsamples'.encode()))[0]
-
-    def __getitem__(self, i):
-        xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
-        lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
-        return torch.tensor(xtxt), torch.tensor(lab)
-
-
-
-def LoadData(dataset,data_folder,maxlen,nthreads):
+def Processing_Data(dataset,data_folder,maxlen,nthreads):
     dataset = load_datasets(names=[dataset])[0]
     dataset_name = dataset.__class__.__name__
     n_classes = dataset.n_classes
@@ -169,4 +166,6 @@ def LoadData(dataset,data_folder,maxlen,nthreads):
                     txn.put(txt_key.encode(), list_to_bytes(xtxt))
 
                 txn.put('nsamples'.encode(), list_to_bytes([i+1]))
-    return TupleLoader(tr_path,nthreads),TupleLoader(te_path,nthreads),n_classes,n_tokens
+    return TupleData(tr_path,nthreads),TupleData(te_path,nthreads),n_classes,n_tokens
+
+
