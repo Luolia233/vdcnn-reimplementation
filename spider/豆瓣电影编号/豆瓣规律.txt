@@ -1,0 +1,21 @@
+豆瓣爬虫规律
+type = 24
+100-95   360
+95-85 375
+
+
+电影链接 最大31  http://movie.douban.com/j/chart/top_list?type=1&interval_id=100%3A90&action=&start=0&limit=20
+电影评论，ID编号可以通过网页编码查到<div id="tb-
+http://movie.douban.com/j/review/1843518/full?show_works=False
+
+
+
+1759856
+
+6889755
+
+4032399
+
+25834652
+
+69
