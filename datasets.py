@@ -4,7 +4,6 @@
 @brief:
 """
 
-
 import sys
 import csv
 import lmdb
@@ -12,40 +11,35 @@ import torch
 from utils.utils import *
 from tqdm import tqdm
 from torch.utils.data import Dataset
-#for windows
+
+# for windows
 csv.field_size_limit(min(sys.maxsize, 2147483646))
 
-n_classes = {"ag_news":4,"db_pedia":14,"yelp_review":5,"yelp_review_polarity":2,"amazon_review_full":5,"amazon_review_polarity":2,"sogou_news":5,"yahoo_answers":10,"imdb":2}
+# 哈希表，存储数据集名称和类别数量的对应关系。
+n_classes = {"ag_news": 4, "db_pedia": 14, "yelp_review": 5, "yelp_review_polarity": 2, "amazon_review_full": 5,
+             "amazon_review_polarity": 2, "sogou_news": 5, "yahoo_answers": 10, "imdb": 2}
 
 
+# 功能：加载csv中的数据
 class TextDataset(object):
-
-    def __init__(self,data_name):
+    def __init__(self, data_name):
         self.data_name = data_name
         self.data_folder = "datasets/{}/raw".format(self.data_name)
-        self.n_classes = n_classes[self.data_name]        
+        self.n_classes = n_classes[self.data_name]
 
         # 检查数据集
         if not checkdata(self.data_folder):
-            raise Exception("please put {} raw dataset.tar.gz or [test.csv, train.csv] into {}".format(self.data_name,self.data_folder))
-
-
+            raise Exception("please put {} raw dataset.tar.gz or [test.csv, train.csv] into {}".format(self.data_name,
+                                                                                                       self.data_folder))
+    # 读取csv文件
     def _generator(self, filename):
-        if self.data_name == "imdb":
-            with open(filename, mode='r', encoding='utf-8') as f:
-                reader = csv.DictReader(f, quotechar='"')
-                for line in reader:
-                    sentence = line['sentence']
-                    label = int(line['label'])
-                    # if sentence and label:
-                    yield sentence, label
-        else:
-            with open(filename, mode='r', encoding='utf-8') as f:
-                reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
-                for line in reader:
-                    sentence = "{} {}".format(line['title'], line['description'])
-                    label = int(line['label']) - 1
-                    yield sentence, label
+        with open(filename, mode='r', encoding='utf-8') as f:
+            reader = csv.DictReader(f, fieldnames=['label', 'title', 'description'], quotechar='"')
+            for line in reader:
+                # 将title和description合并
+                sentence = "{} {}".format(line['title'], line['description'])
+                label = int(line['label']) - 1
+                yield sentence, label
 
     def load_train_data(self):
         return self._generator(os.path.join(self.data_folder, "train.csv"))
@@ -53,32 +47,27 @@ class TextDataset(object):
     def load_test_data(self):
         return self._generator(os.path.join(self.data_folder, "test.csv"))
 
-class TupleData(Dataset):
 
-    def __init__(self, path="",nthreads=0):
-        self.path = path
+class MyData(Dataset):
 
-        self.env = lmdb.open(path, max_readers=nthreads, readonly=True, lock=False, readahead=False, meminit=False)
-        self.txn = self.env.begin(write=False)
+    def __init__(self, sentences, label):
+        self.sentences = sentences
+        self.label = label
 
     def __len__(self):
-        return list_from_bytes(self.txn.get('nsamples'.encode()))[0]
+        return len(self.sentences)
 
     def __getitem__(self, i):
-        xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
-        lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
-        return torch.tensor(xtxt), torch.tensor(lab)
+        return torch.tensor(self.sentences[i]), torch.tensor(self.label[i])
 
 
-
-def load_datasets(names=["ag_news", "imdb"]):
+def load_datasets(names=["ag_news"]):
     """
     Select datasets based on their names
-
     :param names: list of string of dataset names
     :return: list of dataset object
     """
-    
+    # 返回TextDataset类型的数据集的list(如果有多个数据集)
     datasets = []
 
     if 'ag_news' in names:
@@ -102,70 +91,41 @@ def load_datasets(names=["ag_news", "imdb"]):
     return datasets
 
 
-def Processing_Data(dataset,data_folder,maxlen,nthreads):
+def Processing_Data(dataset, data_folder, maxlen, nthreads):
+    # 根据数据集名称加载数据,得到TextDataset对象的list。默认使用第一个数据集。
     dataset = load_datasets(names=[dataset])[0]
     dataset_name = dataset.__class__.__name__
     n_classes = dataset.n_classes
     print("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
 
-    tr_path =  "{}/train.lmdb".format(data_folder)
-    te_path = "{}/test.lmdb".format(data_folder)
-    
-    # check if datasets exis
-    all_exist = True if (os.path.exists(tr_path) and os.path.exists(te_path)) else False
-
-    preprocessor = Preprocessing()
-    vectorizer = CharVectorizer(maxlen=maxlen, padding='post', truncating='post')
+    # 准备英文数据的预处理
+    preprocessor = Preprocessing()  # 功能是把所有字母转为小写。
+    vectorizer = CharVectorizer(maxlen=maxlen, padding='post', truncating='post')  # 功能是将句子向量化
     n_tokens = len(vectorizer.char_dict)
 
-    if not all_exist:
-        print("Creating datasets")
-        tr_sentences = [txt for txt,lab in tqdm(dataset.load_train_data(), desc="counting train samples")]
-        te_sentences = [txt for txt,lab in tqdm(dataset.load_test_data(), desc="counting test samples")]
-            
-        n_tr_samples = len(tr_sentences)
-        n_te_samples = len(te_sentences)
-        del tr_sentences
-        del te_sentences
+    tr_sentences = [txt for txt, lab in dataset.load_train_data()]
+    te_sentences = [txt for txt, lab in dataset.load_test_data()]
+    n_tr_samples = len(tr_sentences)
+    n_te_samples = len(te_sentences)
+    print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
 
-        print("[{}/{}] train/test samples".format(n_tr_samples, n_te_samples))
+    # 加载训练集
+    sentences_tr = []
+    labels_tr = []
+    for i, (sentence, label) in enumerate(
+            tqdm(dataset.load_train_data(), desc="transform train...", total=n_tr_samples)):
+        xtxt = vectorizer.transform(preprocessor.transform([sentence]))[0] #向量化
+        sentences_tr.append(xtxt)
+        labels_tr.append(label)
+    print(len(sentences_tr), len(labels_tr))
 
-        ###################
-        # transform train #
-        ###################
-        #32G
-        with lmdb.open(tr_path, map_size=34359738368) as env:
-            with env.begin(write=True) as txn:
-                for i, (sentence, label) in enumerate(tqdm(dataset.load_train_data(), desc="transform train...", total= n_tr_samples)):
+    # 加载测试集
+    sentences_te = []
+    labels_te = []
+    for i, (sentence, label) in enumerate(
+            tqdm(dataset.load_test_data(), desc="transform test...", total=n_te_samples)):
+        xtxt = vectorizer.transform(preprocessor.transform([sentence]))[0]
+        sentences_te.append(xtxt)
+        labels_te.append(label)
 
-                    xtxt = vectorizer.transform(preprocessor.transform([sentence]))[0]
-                    lab = label
-
-                    txt_key = 'txt-%09d' % i
-                    lab_key = 'lab-%09d' % i
-                    
-                    txn.put(lab_key.encode(), list_to_bytes([lab]))
-                    txn.put(txt_key.encode(), list_to_bytes(xtxt))
-
-                txn.put('nsamples'.encode(), list_to_bytes([i+1]))
-
-        ##################
-        # transform test #
-        ##################
-        with lmdb.open(te_path, map_size=34359738368) as env:
-            with env.begin(write=True) as txn:
-                for i, (sentence, label) in enumerate(tqdm(dataset.load_test_data(), desc="transform test...", total= n_te_samples)):
-
-                    xtxt = vectorizer.transform(preprocessor.transform([sentence]))[0]
-                    lab = label
-
-                    txt_key = 'txt-%09d' % i
-                    lab_key = 'lab-%09d' % i
-                    
-                    txn.put(lab_key.encode(), list_to_bytes([lab]))
-                    txn.put(txt_key.encode(), list_to_bytes(xtxt))
-
-                txn.put('nsamples'.encode(), list_to_bytes([i+1]))
-    return TupleData(tr_path,nthreads),TupleData(te_path,nthreads),n_classes,n_tokens
-
-
+    return MyData(sentences_tr,labels_tr), MyData(sentences_te, labels_te), n_classes, n_tokens
