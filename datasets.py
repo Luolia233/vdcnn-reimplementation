@@ -8,6 +8,7 @@
 import sys
 import csv
 import lmdb
+import torch
 from utils.utils import *
 from tqdm import tqdm
 from torch.utils.data import Dataset
@@ -133,7 +134,7 @@ class TupleLoader(Dataset):
     def __getitem__(self, i):
         xtxt = list_from_bytes(self.txn.get(('txt-%09d' % i).encode()), np.int)
         lab = list_from_bytes(self.txn.get(('lab-%09d' % i).encode()), np.int)[0]
-        return xtxt, lab
+        return torch.tensor(xtxt), torch.tensor(lab)
 
 
 
