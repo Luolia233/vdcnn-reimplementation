@@ -26,7 +26,7 @@ class TextDataset(object):
 
         # 检查数据集
         if not checkdata(self.data_folder):
-            raise Exception("please put {} raw dataset.tar.gz into {}".format(self.data_name,self.data_folder))
+            raise Exception("please put {} raw dataset.tar.gz or [test.csv, train.csv] into {}".format(self.data_name,self.data_folder))
 
 
     def _generator(self, filename):
@@ -84,40 +84,6 @@ def load_datasets(names=["ag_news", "imdb"]):
         datasets.append(TextDataset("imdb"))
     return datasets
 
-
-if __name__ == "__main__":
-
-    names = [
-        'imdb',
-        'ag_news',
-        'db_pedia',
-        'yelp_review',
-        'yelp_polarity',
-        'amazon_review',
-        'amazon_polarity',
-        'sogou_news',
-        'yahoo_answer',
-    ]
-
-    for name in names:
-        print("name: {}".format(name))
-        dataset = load_datasets(names=[name])[0]
-        
-        # train data generator
-        gen = dataset.load_train_data()
-        sentences, labels = [], []
-        for sentence, label in tqdm(gen):
-            sentences.append(sentence)
-            labels.append(label)
-        print(" train: (sentences,labels) = ({}/{})".format(len(sentences), len(labels)))
-
-        # test data generator
-        gen = dataset.load_test_data()
-        sentences, labels = [], []
-        for sentence, label in tqdm(gen):
-            sentences.append(sentence)
-            labels.append(label)
-        print(" train: (sentences,labels) = ({}/{})".format(len(sentences), len(labels)))
 
 
 

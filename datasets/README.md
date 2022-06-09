@@ -8,14 +8,20 @@ db_pedia/raw/xxx.tar.gz
 
 yelp_review_full/raw/xxx.tar.gz
 
-yelp_review_polarity/raw/xxx.tar.gz
+……
 
-amazon_review_full/raw/xxx.tar.gz
+or
 
-amazon_review_polarity/raw/xxx.tar.gz
+ag_news/raw/
+            ---train.csv
+            ---/test.csv
 
-sogou_news/raw/xxx.tar.gz
+db_pedia/raw/
+            ---train.csv
+            ---/test.csv
 
-yahoo_answers/raw/xxx.tar.gz
+yelp_review_full/raw/
+                    ---train.csv
+                    ---/test.csv
 
-imdb/raw/xxx.tar.gz
+……
