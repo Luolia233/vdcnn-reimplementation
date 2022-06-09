@@ -18,7 +18,7 @@ class vdcnn_trainer():
         self.model_folder = opt.model_folder
         self.epochs = opt.epochs
         self.snapshot_interval = opt.snapshot_interval
-        self.device = torch.device("cuda:{}".format(self.gpuid) if self.gpuid >= 0 else "cpu")
+        self.device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
 
 
         print("Loading data...")
