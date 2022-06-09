@@ -7,7 +7,7 @@
 
 import os
 import argparse
-from trainer import run
+from trainer import vdcnn_trainer
 
 # 作用：将命令行解析成Python数据类型所需的全部信息
 def get_args():
@@ -43,4 +43,5 @@ if __name__ == "__main__":
     # 创建路径用于保存模型权重信息、获取数据集。
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(opt.data_folder, exist_ok=True)
-    run(opt)
+    VDCNN_trainer = vdcnn_trainer(opt)
+    VDCNN_trainer.build()

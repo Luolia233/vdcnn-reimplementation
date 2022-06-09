@@ -10,7 +10,7 @@ import torch.nn as nn
 import torch
 from sklearn import metrics
 import torch.nn.functional as F
-
+from tqdm import tqdm
 
 
 def get_metrics(cm, list_metrics):
@@ -49,6 +49,21 @@ def get_metrics(cm, list_metrics):
 
     return dic_metrics
 
+def get_optimizer(solver,lr,momentum,net):
+    assert solver in ['sgd', 'adam']
+    if solver == 'sgd':
+        print(" - optimizer: sgd")
+        return torch.optim.SGD(net.parameters(), lr = lr, momentum=momentum)
+    elif solver == 'adam':
+        print(" - optimizer: adam")
+        return  torch.optim.Adam(net.parameters(), lr = lr)    
+def get_scheduler(optimizer,lr_halve_interval,gamma):
+    if lr_halve_interval and  lr_halve_interval > 0:
+        print(" - lr scheduler: {}".format(lr_halve_interval))
+        return torch.optim.lr_scheduler.StepLR(optimizer, lr_halve_interval, gamma=gamma, last_epoch=-1)
+    else:
+        return None
+
 def predict(net,dataset,device,msg="prediction"):
     
     net.eval()
@@ -66,11 +81,4 @@ def predict(net,dataset,device,msg="prediction"):
 
     return np.concatenate(y_probs, 0), np.concatenate(y_trues, 0).reshape(-1, 1)
 
-
-def save(net, path):
-    """
-    Saves a model's state and it's embedding dic by piggybacking torch's save function
-    """
-    dict_m = net.state_dict()
-    torch.save(dict_m,path+'.pt')
 

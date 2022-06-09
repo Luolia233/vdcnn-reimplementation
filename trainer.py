@@ -5,7 +5,6 @@
 @brief:
 """
 
-from tqdm import tqdm
 from torch.utils.data import DataLoader
 
 from datasets import LoadData
@@ -14,91 +13,111 @@ from network.vdcnn import VDCNN
 from utils.nn_tools import *
 
 
+class vdcnn_trainer():
+    def __init__(self, opt):
+        self.model_folder = opt.model_folder
+        self.epochs = opt.epochs
+        self.snapshot_interval = opt.snapshot_interval
+        self.device = torch.device("cuda:{}".format(self.gpuid) if self.gpuid >= 0 else "cpu")
 
 
+        print("Loading data...")
+        traindata,testdata,n_classes,n_tokens = LoadData(opt.dataset,opt.data_folder,opt.maxlen,opt.nthreads)
+        self.tr_loader = DataLoader(traindata, batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
+        self.te_loader = DataLoader(testdata, batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
+        self.n_classes = n_classes
 
-def train(epoch,net,dataset,device,msg="val/test",optimize=False,optimizer=None,scheduler=None,criterion=None,list_metrics=[]):
-    
-    net.train() if optimize else net.eval()
 
-    epoch_loss = 0
-    nclasses = len(list(net.parameters())[-1])
-    cm = np.zeros((nclasses,nclasses), dtype=int)
+        print("Creating model...")
+        self.net = VDCNN(n_classes=n_classes, num_embedding=n_tokens + 1, embedding_dim=16, depth=opt.depth, shortcut=opt.shortcut)
+        self.net.to(self.device)
+        
+        self.optimizer = get_optimizer(opt.solver,opt.lr,opt.momentum,self.net)
+        self.scheduler = get_scheduler(self.optimizer,opt.lr_halve_interval,opt.gamma)
+        self.criterion = torch.nn.CrossEntropyLoss()
+        self.list_metrics = ['accuracy']
 
-    with tqdm(total=len(dataset),desc="Epoch {} - {}".format(epoch, msg)) as pbar:
-        for iteration, (tx, ty) in enumerate(dataset):
-            
-            data = (tx, ty)
-            data = [x.to(device) for x in data]
+    def train(self,epoch):
+        
+        self.net.train()
+        epoch_loss = 0
+        cm = np.zeros((self.n_classes,self.n_classes), dtype=int)
 
-            if optimize:
-                optimizer.zero_grad()
+        with tqdm(total=len(self.tr_loader),desc="Epoch {} - {}".format(epoch, "training")) as pbar:
+            for iteration, (tx, ty) in enumerate(self.tr_loader):
+                
+                data = (tx, ty)
+                data = [x.to(self.device) for x in data]
 
-            out = net(data[0])
-            ty_prob = F.softmax(out, 1) # probabilites
+                self.optimizer.zero_grad()
 
-            #metrics
-            y_true = data[1].detach().cpu().numpy()
-            y_pred = ty_prob.max(1)[1].cpu().numpy()
+                out = self.net(data[0])
+                ty_prob = F.softmax(out, 1) # probabilites
 
-            cm += metrics.confusion_matrix(y_true, y_pred, labels=range(nclasses))
-            dic_metrics = get_metrics(cm, list_metrics)
-            
-            loss =  criterion(out, data[1]) 
-            epoch_loss += loss.item()
-            dic_metrics['logloss'] = epoch_loss/(iteration+1)
+                #metrics
+                y_true = data[1].detach().cpu().numpy()
+                y_pred = ty_prob.max(1)[1].cpu().numpy()
 
-            if optimize:
+                cm += metrics.confusion_matrix(y_true, y_pred, labels=range(self.n_classes))
+                dic_metrics = get_metrics(cm, self.list_metrics)
+                
+                loss =  self.criterion(out, data[1]) 
+                epoch_loss += loss.item()
+                dic_metrics['logloss'] = epoch_loss/(iteration+1)
+
+
                 loss.backward()
-                optimizer.step()
-                dic_metrics['lr'] = optimizer.state_dict()['param_groups'][0]['lr']
+                self.optimizer.step()
+                dic_metrics['lr'] = self.optimizer.state_dict()['param_groups'][0]['lr']
 
-            pbar.update(1)
-            pbar.set_postfix(dic_metrics)
+                pbar.update(1)
+                pbar.set_postfix(dic_metrics)
 
-    if scheduler:
-        scheduler.step()
+        self.scheduler.step()
 
-def run(opt):
-    traindata,testdata,n_classes,n_tokens = LoadData(opt.dataset,opt.data_folder,opt.maxlen,opt.nthreads)
-
-    tr_loader = DataLoader(traindata, batch_size=opt.batch_size, shuffle=True, num_workers=opt.nthreads, pin_memory=True)
-    te_loader = DataLoader(testdata, batch_size=opt.batch_size, shuffle=False, num_workers=opt.nthreads, pin_memory=False)
-
-    # select cpu or gpu
-    device = torch.device("cuda:{}".format(opt.gpuid) if opt.gpuid >= 0 else "cpu")
-    list_metrics = ['accuracy']
-
-
-    print("Creating model...")
-    net = VDCNN(n_classes=n_classes, num_embedding=n_tokens + 1, embedding_dim=16, depth=opt.depth, shortcut=opt.shortcut)
-    criterion = torch.nn.CrossEntropyLoss()
-    net.to(device)
-
-    assert opt.solver in ['sgd', 'adam']
-    if opt.solver == 'sgd':
-        print(" - optimizer: sgd")
-        optimizer = torch.optim.SGD(net.parameters(), lr = opt.lr, momentum=opt.momentum)
-    elif opt.solver == 'adam':
-        print(" - optimizer: adam")
-        optimizer = torch.optim.Adam(net.parameters(), lr = opt.lr)    
+    def test(self,epoch):
         
-    scheduler = None
-    if opt.lr_halve_interval and  opt.lr_halve_interval > 0:
-        print(" - lr scheduler: {}".format(opt.lr_halve_interval))
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, opt.lr_halve_interval, gamma=opt.gamma, last_epoch=-1)
-        
-    for epoch in range(1, opt.epochs + 1):
-        train(epoch,net, tr_loader, device, msg="training", optimize=True, optimizer=optimizer, scheduler=scheduler, criterion=criterion,list_metrics=list_metrics)
-        train(epoch,net, te_loader, device, msg="testing ", criterion=criterion)
+        self.net.eval()
+        epoch_loss = 0
+        cm = np.zeros((self.n_classes,self.n_classes), dtype=int)
 
-        if (epoch % opt.snapshot_interval == 0) and (epoch > 0):
-            path = "{}/model_epoch_{}".format(opt.model_folder,epoch)
-            print("snapshot of model saved as {}".format(path))
-            save(net, path=path)
+        with tqdm(total=len(self.te_loader),desc="Epoch {} - {}".format(epoch, "testing")) as pbar:
+            for iteration, (tx, ty) in enumerate(self.te_loader):
+                
+                data = (tx, ty)
+                data = [x.to(self.device) for x in data]
 
 
-    if opt.epochs > 0:
-        path = "{}/model_epoch_{}".format(opt.model_folder,opt.epochs)
-        print("snapshot of model saved as {}".format(path))
-        save(net, path=path)
+                out = self.net(data[0])
+                ty_prob = F.softmax(out, 1) # probabilites
+
+                #metrics
+                y_true = data[1].detach().cpu().numpy()
+                y_pred = ty_prob.max(1)[1].cpu().numpy()
+
+                cm += metrics.confusion_matrix(y_true, y_pred, labels=range(self.n_classes))
+                dic_metrics = get_metrics(cm, [])
+                
+                loss =  self.criterion(out, data[1]) 
+                epoch_loss += loss.item()
+                dic_metrics['logloss'] = epoch_loss/(iteration+1)
+
+
+                pbar.update(1)
+                pbar.set_postfix(dic_metrics)
+
+
+    def build(self):
+
+        for epoch in range(self.epochs):
+            self.train(epoch)
+            self.test(epoch)
+
+            if ((epoch+1) % self.snapshot_interval == 0) and (epoch > 0):
+                path = "{}/model_epoch_{}".format(self.model_folder,epoch)
+                print("snapshot of model saved as {}".format(path))
+                save(self.net, path=path)
+
+        path = "{}/model_epoch_{}".format(self.model_folder,self.epochs)
+        print("final model saved as {}".format(path))
+        torch.save(self.net.state_dict(),path+'.pt')
