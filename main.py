@@ -17,7 +17,7 @@ def get_args():
     parser.add_argument("--dataset", type=str, default='ag_news')
     parser.add_argument("--model_folder", type=str, default="ckpt/ag_news")
     parser.add_argument("--data_folder", type=str, default="datasets/ag_news")
-    parser.add_argument("--depth", type=int, choices=['9', '17', '29'], default='9', help="Depth of the network tested in the paper ('9', '17', '29')")
+    parser.add_argument("--depth", type=str, choices=['9', '17', '29'], default='9', help="Depth of the network tested in the paper ('9', '17', '29')")
     parser.add_argument("--maxlen", type=int, default=1024)
     parser.add_argument('--shortcut', action='store_true', default=False)
     parser.add_argument("--batch_size", type=int, default=128, help="number of example read by the gpu")

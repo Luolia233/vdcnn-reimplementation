@@ -29,7 +29,7 @@ class vdcnn_trainer():
 
 
         print("Creating model...")
-        self.net = VDCNN(n_classes=n_classes, num_embedding=n_tokens + 1, embedding_dim=16, depth=opt.depth, shortcut=opt.shortcut)
+        self.net = VDCNN(n_classes=n_classes, table_in=n_tokens + 1, table_out=16, depth=opt.depth, shortcut=opt.shortcut)
         self.net.to(self.device)
 
         self.optimizer = get_optimizer(opt.solver,opt.lr,opt.momentum,self.net)
