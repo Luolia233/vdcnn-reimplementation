@@ -61,39 +61,9 @@ class MyData(Dataset):
         return torch.tensor(self.sentences[i]), torch.tensor(self.label[i])
 
 
-def load_datasets(names=["ag_news"]):
-    """
-    Select datasets based on their names
-    :param names: list of string of dataset names
-    :return: list of dataset object
-    """
-    # 返回TextDataset类型的数据集的list(如果有多个数据集)
-    datasets = []
-
-    if 'ag_news' in names:
-        datasets.append(TextDataset("ag_news"))
-    if 'db_pedia' in names:
-        datasets.append(TextDataset("db_pedia"))
-    if 'yelp_review' in names:
-        datasets.append(TextDataset("yelp_review"))
-    if 'yelp_polarity' in names:
-        datasets.append(TextDataset("yelp_polarity"))
-    if 'amazon_review' in names:
-        datasets.append(TextDataset("amazon_review"))
-    if 'amazon_polarity' in names:
-        datasets.append(TextDataset("amazon_polarity"))
-    if 'sogou_news' in names:
-        datasets.append(TextDataset("sogou_news"))
-    if 'yahoo_answer' in names:
-        datasets.append(TextDataset("yahoo_answer"))
-    if 'imdb' in names:
-        datasets.append(TextDataset("imdb"))
-    return datasets
-
-
 def Processing_Data(dataset, data_folder, maxlen, nthreads):
-    # 根据数据集名称加载数据,得到TextDataset对象的list。默认使用第一个数据集。
-    dataset = load_datasets(names=[dataset])[0]
+    # 根据数据集名称加载数据,得到TextDataset对象, 默认使用ag_news数据集。
+    dataset = TextDataset(dataset)
     dataset_name = dataset.__class__.__name__
     n_classes = dataset.n_classes
     print("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
