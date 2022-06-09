@@ -31,7 +31,7 @@ class vdcnn_trainer():
         print("Creating model...")
         self.net = VDCNN(n_classes=n_classes, num_embedding=n_tokens + 1, embedding_dim=16, depth=opt.depth, shortcut=opt.shortcut)
         self.net.to(self.device)
-        
+
         self.optimizer = get_optimizer(opt.solver,opt.lr,opt.momentum,self.net)
         self.scheduler = get_scheduler(self.optimizer,opt.lr_halve_interval,opt.gamma)
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -116,7 +116,7 @@ class vdcnn_trainer():
             if ((epoch+1) % self.snapshot_interval == 0) and (epoch > 0):
                 path = "{}/model_epoch_{}".format(self.model_folder,epoch)
                 print("snapshot of model saved as {}".format(path))
-                save(self.net, path=path)
+                torch.save(self.net.state_dict(),path+'.pt')
 
         path = "{}/model_epoch_{}".format(self.model_folder,self.epochs)
         print("final model saved as {}".format(path))
