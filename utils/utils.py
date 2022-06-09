@@ -9,10 +9,6 @@ import numpy as np
 import os
 import tarfile
 import shutil
-# multiprocessing workaround
-import resource
-rlimit = resource.getrlimit(resource.RLIMIT_NOFILE)
-resource.setrlimit(resource.RLIMIT_NOFILE, (2048, rlimit[1]))
 
 
 

@@ -61,7 +61,8 @@ class vdcnn_trainer():
                 cm += metrics.confusion_matrix(y_true, y_pred, labels=range(self.n_classes))
                 dic_metrics = get_metrics(cm, self.list_metrics)
                 
-                loss =  self.criterion(out, data[1]) 
+                #for windows .long()
+                loss =  self.criterion(out, data[1].long()) 
                 epoch_loss += loss.item()
                 dic_metrics['logloss'] = epoch_loss/(iteration+1)
 
@@ -98,7 +99,7 @@ class vdcnn_trainer():
                 cm += metrics.confusion_matrix(y_true, y_pred, labels=range(self.n_classes))
                 dic_metrics = get_metrics(cm, [])
                 
-                loss =  self.criterion(out, data[1]) 
+                loss =  self.criterion(out, data[1].long()) 
                 epoch_loss += loss.item()
                 dic_metrics['logloss'] = epoch_loss/(iteration+1)
 

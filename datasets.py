@@ -12,7 +12,8 @@ import torch
 from utils.utils import *
 from tqdm import tqdm
 from torch.utils.data import Dataset
-csv.field_size_limit(sys.maxsize)
+#for windows
+csv.field_size_limit(min(sys.maxsize, 2147483646))
 n_classes = {"ag_news":4,"db_pedia":14,"yelp_review":5,"yelp_review_polarity":2,"amazon_review_full":5,"amazon_review_polarity":2,"sogou_news":5,"yahoo_answers":10,"imdb":2}
 
 
@@ -169,7 +170,8 @@ def LoadData(dataset,data_folder,maxlen,nthreads):
         ###################
         # transform train #
         ###################
-        with lmdb.open(tr_path, map_size=1099511627776) as env:
+        #32G
+        with lmdb.open(tr_path, map_size=34359738368) as env:
             with env.begin(write=True) as txn:
                 for i, (sentence, label) in enumerate(tqdm(dataset.load_train_data(), desc="transform train...", total= n_tr_samples)):
 
@@ -187,7 +189,7 @@ def LoadData(dataset,data_folder,maxlen,nthreads):
         ##################
         # transform test #
         ##################
-        with lmdb.open(te_path, map_size=1099511627776) as env:
+        with lmdb.open(te_path, map_size=34359738368) as env:
             with env.begin(write=True) as txn:
                 for i, (sentence, label) in enumerate(tqdm(dataset.load_test_data(), desc="transform test...", total= n_te_samples)):
 
