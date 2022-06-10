@@ -30,7 +30,7 @@ class BasicConvBlock(nn.Module):
 
     def __init__(self, input_dim=128, output_dim=256, kernel_size=3, padding=1, stride=1, shortcut=False):
         super(BasicConvBlock, self).__init__()
-        self.downsample = (input_dim == output_dim)
+        self.downsample = (input_dim != output_dim)
         self.shortcut = shortcut
 
         self.conv1 = nn.Conv1d(input_dim, output_dim, kernel_size=kernel_size, padding=padding, stride=stride)
@@ -61,6 +61,92 @@ class BasicConvBlock(nn.Module):
         return out
 
 
+class SEModule(nn.Module):
+    def __init__(self, channels, reduction=16):
+        super(SEModule, self).__init__()
+        self.avg_pool = nn.AdaptiveAvgPool1d(1)
+        self.fc1 = nn.Conv1d(channels, channels // reduction, kernel_size=1)
+        self.relu = nn.ReLU(inplace=True)
+        self.fc2 = nn.Conv1d(channels // reduction, channels, kernel_size=1)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, input):
+        x = self.avg_pool(input)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
+        x = self.sigmoid(x)
+        return input * x
+
+
+class Res2NetBottleneck(nn.Module):
+    expansion = 1  #残差块的输出通道数=输入通道数*expansion
+    def __init__(self, inplanes, planes, stride=1, scales=2, groups=1, se=False,  norm_layer=True):
+        #scales为残差块中使用分层的特征组数，groups表示其中3*3卷积层数量，SE模块和BN层
+        super(Res2NetBottleneck, self).__init__()
+
+        if planes % scales != 0: #输出通道数为4的倍数
+            raise ValueError('Planes must be divisible by scales')
+        if norm_layer:  #BN层
+            norm_layer = nn.BatchNorm1d
+
+        self.downsample = (inplanes != planes)
+        bottleneck_planes = groups * planes
+        self.scales = scales
+        self.stride = stride
+        #1*1的卷积层,在第二个layer时缩小图片尺寸
+        self.conv1 = nn.Conv1d(inplanes, bottleneck_planes, kernel_size=1, stride=stride)
+        self.bn1 = norm_layer(bottleneck_planes)
+        #3*3的卷积层，一共有3个卷积层和3个BN层
+        self.conv2 = nn.ModuleList([nn.Conv1d(bottleneck_planes // scales, bottleneck_planes // scales,
+                                              kernel_size=3, stride=1, padding=1, groups=groups) for _ in range(scales-1)])
+        self.bn2 = nn.ModuleList([norm_layer(bottleneck_planes // scales) for _ in range(scales-1)])
+        #1*1的卷积层，经过这个卷积层之后输出的通道数变成
+        self.conv3 = nn.Conv1d(bottleneck_planes, planes * self.expansion, kernel_size=1, stride=1)
+        self.bn3 = norm_layer(planes * self.expansion)
+        self.relu = nn.ReLU(inplace=True)
+
+        self.ds = nn.Sequential(nn.Conv1d(inplanes, planes, kernel_size=1, stride=1, bias=False), nn.BatchNorm1d(planes))
+
+        #SE模块
+        self.se = SEModule(planes * self.expansion) if se else None
+
+    def forward(self, x):
+        identity = x
+
+        #1*1的卷积层
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.relu(out)
+
+        #scales个(3x3)的残差分层架构
+        xs = torch.chunk(out, self.scales, 1) #将x分割成scales块
+        ys = []
+        for s in range(self.scales):
+            if s == 0:
+                ys.append(xs[s])
+            elif s == 1:
+                ys.append(self.relu(self.bn2[s-1](self.conv2[s-1](xs[s]))))
+            else:
+                ys.append(self.relu(self.bn2[s-1](self.conv2[s-1](xs[s] + ys[-1]))))
+        out = torch.cat(ys, 1)
+
+        #1*1的卷积层
+        out = self.conv3(out)
+        out = self.bn3(out)
+
+        #加入SE模块
+        if self.se is not None:
+            out = self.se(out)
+        #下采样
+        if self.downsample:
+            identity = self.ds(identity)
+
+        out += identity
+        out = self.relu(out)
+
+        return out
+      
 """
 VDCNN的总体结构,复现了论文中的3种深度:[9,17,29]
                     X
@@ -99,9 +185,10 @@ cfg = {
 
 class VDCNN(nn.Module):
 
-    def __init__(self, n_classes=2, table_in=141, table_out=16, depth='9', shortcut=False):
+    def __init__(self, n_classes=2, table_in=141, table_out=16, depth='9', shortcut=False, convblock='res2net_style'):
         super(VDCNN, self).__init__()
 
+        self.convblock = convblock
         self.embed = nn.Embedding(table_in, table_out, padding_idx=0, max_norm=None, norm_type=2, scale_grad_by_freq=False, sparse=False)
 
         self.layers = self._make_layers(cfg[depth],table_out,shortcut)
@@ -124,7 +211,10 @@ class VDCNN(nn.Module):
             if x == 'M':
                 layers += [nn.MaxPool1d(kernel_size=3, stride=2, padding=1)]
             else:
-                layers += [BasicConvBlock(input_dim=in_channels, output_dim=x, kernel_size=3, padding=1, shortcut=shortcut)]
+                if self.convblock == 'resnet_style':
+                    layers += [BasicConvBlock(input_dim=in_channels, output_dim=x, kernel_size=3, padding=1, shortcut=shortcut)]
+                else:
+                    layers += [Res2NetBottleneck(inplanes=in_channels, planes=x)]
                 in_channels = x
         layers += [nn.AdaptiveMaxPool1d(8)]
         return nn.Sequential(*layers)
