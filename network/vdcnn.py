@@ -80,8 +80,8 @@ class SEModule(nn.Module):
 
 
 class Res2NetBottleneck(nn.Module):
-    expansion = 1  #残差块的输出通道数=输入通道数*expansion
-    def __init__(self, inplanes, planes, stride=1, scales=2, groups=1, se=False,  norm_layer=True):
+    expansion = 1 
+    def __init__(self, inplanes, planes, stride=1, scales=4, groups=1, se=False,  norm_layer=True):
         #scales为残差块中使用分层的特征组数，groups表示其中3*3卷积层数量，SE模块和BN层
         super(Res2NetBottleneck, self).__init__()
 
@@ -94,14 +94,11 @@ class Res2NetBottleneck(nn.Module):
         bottleneck_planes = groups * planes
         self.scales = scales
         self.stride = stride
-        #1*1的卷积层,在第二个layer时缩小图片尺寸
         self.conv1 = nn.Conv1d(inplanes, bottleneck_planes, kernel_size=1, stride=stride)
         self.bn1 = norm_layer(bottleneck_planes)
-        #3*3的卷积层，一共有3个卷积层和3个BN层
         self.conv2 = nn.ModuleList([nn.Conv1d(bottleneck_planes // scales, bottleneck_planes // scales,
                                               kernel_size=3, stride=1, padding=1, groups=groups) for _ in range(scales-1)])
         self.bn2 = nn.ModuleList([norm_layer(bottleneck_planes // scales) for _ in range(scales-1)])
-        #1*1的卷积层，经过这个卷积层之后输出的通道数变成
         self.conv3 = nn.Conv1d(bottleneck_planes, planes * self.expansion, kernel_size=1, stride=1)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
