@@ -7,7 +7,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
+import math
 
 """
 Convolutional Block
@@ -80,7 +80,7 @@ class SEModule(nn.Module):
 
 
 class Res2NetBottleneck(nn.Module):
-    expansion = 1 
+    expansion = 1  #残差块的输出通道数=输入通道数*expansion
     def __init__(self, inplanes, planes, stride=1, scales=4, groups=1, se=False,  norm_layer=True):
         #scales为残差块中使用分层的特征组数，groups表示其中3*3卷积层数量，SE模块和BN层
         super(Res2NetBottleneck, self).__init__()
@@ -94,11 +94,14 @@ class Res2NetBottleneck(nn.Module):
         bottleneck_planes = groups * planes
         self.scales = scales
         self.stride = stride
+        #1*1的卷积层,在第二个layer时缩小图片尺寸
         self.conv1 = nn.Conv1d(inplanes, bottleneck_planes, kernel_size=1, stride=stride)
         self.bn1 = norm_layer(bottleneck_planes)
+        #3*3的卷积层，一共有3个卷积层和3个BN层
         self.conv2 = nn.ModuleList([nn.Conv1d(bottleneck_planes // scales, bottleneck_planes // scales,
                                               kernel_size=3, stride=1, padding=1, groups=groups) for _ in range(scales-1)])
         self.bn2 = nn.ModuleList([norm_layer(bottleneck_planes // scales) for _ in range(scales-1)])
+        #1*1的卷积层，经过这个卷积层之后输出的通道数变成
         self.conv3 = nn.Conv1d(bottleneck_planes, planes * self.expansion, kernel_size=1, stride=1)
         self.bn3 = norm_layer(planes * self.expansion)
         self.relu = nn.ReLU(inplace=True)
@@ -143,7 +146,7 @@ class Res2NetBottleneck(nn.Module):
         out = self.relu(out)
 
         return out
-      
+
 """
 VDCNN的总体结构,复现了论文中的3种深度:[9,17,29]
                     X
@@ -180,9 +183,40 @@ cfg = {
     '29': [64, 64, 64, 64, 64, 'M', 128, 128, 128, 128, 128, 'M', 256, 256, 'M', 512, 512],
 }
 
+
+class SPPLayer(torch.nn.Module):
+
+    def __init__(self, num_levels, pool_type='max_pool'):
+        super(SPPLayer, self).__init__()
+
+        self.num_levels = num_levels
+        self.pool_type = pool_type
+
+    def forward(self, x):
+        num, c, l = x.size() # num:样本数量 c:通道数 l:长度
+        for i in range(self.num_levels):
+            level = i+1
+            kernel_size = math.ceil(l / level)
+            stride = math.ceil(l / level)
+            pooling = math.floor((kernel_size*level-l+1)/2)
+
+            # 选择池化方式 
+            if self.pool_type == 'max_pool':
+                tensor = F.max_pool1d(x, kernel_size=kernel_size, stride=stride, padding=pooling).view(num, -1)
+            else:
+                tensor = F.avg_pool1d(x, kernel_size=kernel_size, stride=stride, padding=pooling).view(num, -1)
+
+            # 展开、拼接
+            if (i == 0):
+                x_flatten = tensor.view(num, -1)
+            else:
+                x_flatten = torch.cat((x_flatten, tensor.view(num, -1)), 1)
+        return x_flatten
+
+
 class VDCNN(nn.Module):
 
-    def __init__(self, n_classes=2, table_in=141, table_out=16, depth='9', shortcut=False, convblock='res2net_style'):
+    def __init__(self, n_classes=2, table_in=141, table_out=16, depth='9', shortcut=False, convblock='resnet_style'):
         super(VDCNN, self).__init__()
 
         self.convblock = convblock
@@ -190,8 +224,10 @@ class VDCNN(nn.Module):
 
         self.layers = self._make_layers(cfg[depth],table_out,shortcut)
 
+        self.spr = SPPLayer(num_levels=4)
+
         fc_layers = []
-        fc_layers += [nn.Linear(4096, 2048), nn.ReLU()]
+        fc_layers += [nn.Linear(5120, 2048), nn.ReLU()]
         fc_layers += [nn.Linear(2048, 2048), nn.ReLU()]
         fc_layers += [nn.Linear(2048, n_classes)]
 
@@ -229,8 +265,11 @@ class VDCNN(nn.Module):
         out = self.embed(x)
         out = out.transpose(1, 2)
         out = self.layers(out)
+        out = self.spr(out)
         out = out.view(out.size(0), -1)
+        # print(out.shape)
         out = self.fc_layers(out)
+        # print(out.shape)
 
         return out
 
