@@ -85,7 +85,7 @@ class vdcnn_trainer():
                 y_pred = ty_prob.max(1)[1].cpu().numpy()
 
                 cm += metrics.confusion_matrix(y_true, y_pred, labels=range(self.n_classes))
-                dic_metrics = get_metrics(cm, [])
+                dic_metrics = get_metrics(cm, self.list_metrics)
                 
                 loss =  self.criterion(out, data[1].long()) 
                 epoch_loss += loss.item()
