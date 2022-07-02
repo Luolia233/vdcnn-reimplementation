@@ -10,6 +10,7 @@ import argparse
 from trainer import vdcnn_trainer
 from datasets import Processing_Data
 from network.vdcnn import VDCNN
+from datasetChin import Processing_dataChin
 
 # 作用：将命令行解析成Python数据类型所需的全部信息
 def get_args():
@@ -20,6 +21,7 @@ def get_args():
     parser.add_argument("--model_folder", type=str, default="ckpt/ag_news")
     parser.add_argument("--depth", type=str, choices=['9', '17', '29'], default='9', help="Depth of the network tested in the paper ('9', '17', '29')")
     parser.add_argument("--maxlen", type=int, default=1024)
+    parser.add_argument("--maxlen_c", type=int, default=50,help='chinese sentences needs pre 50 words')
     parser.add_argument('--shortcut', action='store_true', default=False)
     parser.add_argument("--batch_size", type=int, default=128, help="number of example read by the gpu")
     parser.add_argument("--epochs", type=int, default=100)
@@ -29,10 +31,11 @@ def get_args():
     parser.add_argument("--momentum", type=float, default=0.9, help="Number of iterations before halving learning rate")
     parser.add_argument("--snapshot_interval", type=int, default=3)
     parser.add_argument("--gamma", type=float, default=0.9)
-    parser.add_argument("--gpuid", type=int, default=0)
+    parser.add_argument("--gpuid", type=int, default=-1)
     parser.add_argument("--list_metrics", type=str, nargs='+', default=["accuracy"], help="Compute metrics from a confusion matrix")
-    parser.add_argument("--lmdb_nthreads", type=int, default=4, help="If the program runs on your own PC, maybe it needs to be set 1")
-    parser.add_argument("--num_workers", type=int, default=4, help="If the program runs on your own PC, maybe it needs to be set 0")
+    parser.add_argument("--lmdb_nthreads", type=int, default=1, help="If the program runs on your own PC, maybe it needs to be set 1")
+    parser.add_argument("--num_workers", type=int, default=0, help="If the program runs on your own PC, maybe it needs to be set 0")
+    parser.add_argument("--language_dataset",type=str,default='chinese',help="According the language you choose to process data")
     # 解析参数
     args = parser.parse_args()
     return args
@@ -46,16 +49,31 @@ def main():
     data_folder = "datasets/{}/raw".format(opt.dataset)
     os.makedirs(opt.model_folder, exist_ok=True)
     os.makedirs(data_folder, exist_ok=True)
-    # 数据预处理
-    print("Processing data...")
-    trainset,testset,n_classes,n_tokens = Processing_Data(opt.dataset,data_folder,opt.maxlen,opt.lmdb_nthreads)
-    # 创建模型
-    print("Creating model...")
-    net = VDCNN(n_classes=n_classes, table_in=n_tokens + 1, table_out=16, depth=opt.depth, shortcut=opt.shortcut)
-    # 训练配置
-    VDCNN_trainer = vdcnn_trainer(opt,net,trainset,testset,n_classes)
-    # 模型训练
-    VDCNN_trainer.build()
+
+    if opt.language_dataset == 'chinese':
+        # 数据预处理
+        print("Processing data...")
+        trainset, testset, n_classes, n_tokens = Processing_dataChin("D:/vdcnn-reimplementation", '', opt.maxlen,
+                                                                     opt.lmdb_nthreads)
+        # 创建模型
+        print("Creating model...")
+        net = VDCNN(n_classes=n_classes, table_in=200, table_out=200, depth=opt.depth, shortcut=opt.shortcut)
+        # 训练配置
+        VDCNN_trainer = vdcnn_trainer(opt, net, trainset, testset, n_classes)
+        # 模型训练
+        VDCNN_trainer.build()
+    else:
+        # 数据预处理
+        print("Processing data...")
+        trainset, testset, n_classes, n_tokens = Processing_Data(opt.dataset, data_folder, opt.maxlen,
+                                                                 opt.lmdb_nthreads)
+        # 创建模型
+        print("Creating model...")
+        net = VDCNN(n_classes=n_classes, table_in=n_tokens + 1, table_out=16, depth=opt.depth, shortcut=opt.shortcut)
+        # 训练配置
+        VDCNN_trainer = vdcnn_trainer(opt,net,trainset,testset,n_classes)
+        # 模型训练
+        VDCNN_trainer.build()
 
 if __name__ == "__main__":
     main()

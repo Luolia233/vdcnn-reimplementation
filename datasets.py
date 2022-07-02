@@ -57,6 +57,7 @@ class MyData(Dataset):
     def __len__(self):
         return len(self.sentences)
 
+    # 定义使用索引访问元素
     def __getitem__(self, i):
         return torch.tensor(self.sentences[i]), torch.tensor(self.label[i])
 
@@ -64,15 +65,16 @@ class MyData(Dataset):
 def Processing_Data(dataset, data_folder, maxlen, nthreads):
     # 根据数据集名称加载数据,得到TextDataset对象, 默认使用ag_news数据集。
     dataset = TextDataset(dataset)
-    dataset_name = dataset.__class__.__name__
-    n_classes = dataset.n_classes
+    dataset_name = dataset.__class__.__name__ # 数据集名字
+    n_classes = dataset.n_classes   # 类别数
     print("dataset: {}, n_classes: {}".format(dataset_name, n_classes))
 
     # 准备英文数据的预处理
-    preprocessor = Preprocessing()  # 功能是把所有字母转为小写。
+    charLowercase = CharLowercase()  # 功能是把所有字母转为小写。
     vectorizer = CharVectorizer(maxlen=maxlen, padding='post', truncating='post')  # 功能是将句子向量化
-    n_tokens = len(vectorizer.char_dict)
+    n_tokens = len(vectorizer.char_dict) # tokens数
 
+    # 得到训练集和数据集的样本数目
     tr_sentences = [txt for txt, lab in dataset.load_train_data()]
     te_sentences = [txt for txt, lab in dataset.load_test_data()]
     n_tr_samples = len(tr_sentences)
@@ -84,17 +86,16 @@ def Processing_Data(dataset, data_folder, maxlen, nthreads):
     labels_tr = []
     for i, (sentence, label) in enumerate(
             tqdm(dataset.load_train_data(), desc="transform train...", total=n_tr_samples)):
-        xtxt = vectorizer.transform(preprocessor.transform([sentence]))[0] #向量化
+        xtxt = vectorizer.transform(charLowercase.transform([sentence]))[0] # 向量化
         sentences_tr.append(xtxt)
         labels_tr.append(label)
-    print(len(sentences_tr), len(labels_tr))
 
     # 加载测试集
     sentences_te = []
     labels_te = []
     for i, (sentence, label) in enumerate(
             tqdm(dataset.load_test_data(), desc="transform test...", total=n_te_samples)):
-        xtxt = vectorizer.transform(preprocessor.transform([sentence]))[0]
+        xtxt = vectorizer.transform(charLowercase.transform([sentence]))[0]
         sentences_te.append(xtxt)
         labels_te.append(label)
 

@@ -94,7 +94,7 @@ if __name__ == '__main__':
         i = 0
         for cur_id in ans:
             print('this is {}'.format(i))
-            # # 好评
+            # 好评
             percent_type = 'percent_type=h'
             url = 'https://movie.douban.com/subject/{}/comments?{}&{}'.format(cur_id.strip(), percent_type, 'start=0')
             spider_comment(url,writer,cur_id)

@@ -180,13 +180,71 @@ cfg = {
     '29': [64, 64, 64, 64, 64, 'M', 128, 128, 128, 128, 128, 'M', 256, 256, 'M', 512, 512],
 }
 
+# class VDCNN(nn.Module):
+#
+#     def __init__(self, n_classes=2, table_in=141, table_out=16, depth='9', shortcut=False, convblock='res2net_style'):
+#         super(VDCNN, self).__init__()
+#
+#         self.convblock = convblock
+#         self.embed = nn.Embedding(table_in, table_out, padding_idx=0, max_norm=None, norm_type=2, scale_grad_by_freq=False, sparse=False)
+#
+#         self.layers = self._make_layers(cfg[depth],table_out,shortcut)
+#
+#         fc_layers = []
+#         fc_layers += [nn.Linear(4096, 2048), nn.ReLU()]
+#         fc_layers += [nn.Linear(2048, 2048), nn.ReLU()]
+#         fc_layers += [nn.Linear(2048, n_classes)]
+#
+#
+#         self.fc_layers = nn.Sequential(*fc_layers)
+#
+#         self.__init_weights()
+#
+#     def _make_layers(self, cfg,table_out,shortcut):
+#         layers = []
+#         layers += [nn.Conv1d(table_out, 64, kernel_size=3, padding=1)]
+#         in_channels = 64
+#         for x in cfg:
+#             if x == 'M':
+#                 layers += [nn.MaxPool1d(kernel_size=3, stride=2, padding=1)]
+#             else:
+#                 if self.convblock == 'resnet_style':
+#                     layers += [BasicConvBlock(input_dim=in_channels, output_dim=x, kernel_size=3, padding=1, shortcut=shortcut)]
+#                 else:
+#                     layers += [Res2NetBottleneck(inplanes=in_channels, planes=x)]
+#                 in_channels = x
+#         layers += [nn.AdaptiveMaxPool1d(8)]
+#         return nn.Sequential(*layers)
+#
+#
+#     def __init_weights(self):
+#         for m in self.modules():
+#             if isinstance(m, nn.Conv1d):
+#                 nn.init.kaiming_normal_(m.weight, mode='fan_in')
+#                 if m.bias is not None:
+#                     nn.init.constant_(m.bias, 0)
+#
+#     def forward(self, x):
+#
+#         out = self.embed(x)
+#         out = out.transpose(1, 2)
+#         out = self.layers(out)
+#         out = out.view(out.size(0), -1)
+#         out = self.fc_layers(out)
+#
+#         return out
+
 class VDCNN(nn.Module):
 
     def __init__(self, n_classes=2, table_in=141, table_out=16, depth='9', shortcut=False, convblock='res2net_style'):
         super(VDCNN, self).__init__()
 
         self.convblock = convblock
-        self.embed = nn.Embedding(table_in, table_out, padding_idx=0, max_norm=None, norm_type=2, scale_grad_by_freq=False, sparse=False)
+
+        if(table_in == 200):  #中文词向量已形成，每个词200维，因此无需nn.Embedding形成词向量
+            self.embed = None
+        else:    #英文数据集的情况
+            self.embed = nn.Embedding(table_in, table_out, padding_idx=0, max_norm=None, norm_type=2, scale_grad_by_freq=False, sparse=False)
 
         self.layers = self._make_layers(cfg[depth],table_out,shortcut)
 
@@ -225,12 +283,13 @@ class VDCNN(nn.Module):
                     nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-
-        out = self.embed(x)
+        if(self.embed):
+            out = self.embed(x)
+        else:
+            out = x
         out = out.transpose(1, 2)
         out = self.layers(out)
         out = out.view(out.size(0), -1)
         out = self.fc_layers(out)
 
         return out
-
