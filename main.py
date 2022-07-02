@@ -53,7 +53,7 @@ def main():
     if opt.language_dataset == 'chinese':
         # 数据预处理
         print("Processing data...")
-        trainset, testset, n_classes, n_tokens = Processing_dataChin("D:/vdcnn-reimplementation", '', opt.maxlen,
+        trainset, testset, n_classes, n_tokens = Processing_dataChin("D:/vdcnn-reimplementation", '', opt.maxlen_c,
                                                                      opt.lmdb_nthreads)
         # 创建模型
         print("Creating model...")
