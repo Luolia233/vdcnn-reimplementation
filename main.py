@@ -31,10 +31,10 @@ def get_args():
     parser.add_argument("--momentum", type=float, default=0.9, help="Number of iterations before halving learning rate")
     parser.add_argument("--snapshot_interval", type=int, default=3)
     parser.add_argument("--gamma", type=float, default=0.9)
-    parser.add_argument("--gpuid", type=int, default=-1)
+    parser.add_argument("--gpuid", type=int, default=0)
     parser.add_argument("--list_metrics", type=str, nargs='+', default=["accuracy"], help="Compute metrics from a confusion matrix")
-    parser.add_argument("--lmdb_nthreads", type=int, default=1, help="If the program runs on your own PC, maybe it needs to be set 1")
-    parser.add_argument("--num_workers", type=int, default=0, help="If the program runs on your own PC, maybe it needs to be set 0")
+    parser.add_argument("--lmdb_nthreads", type=int, default=4, help="If the program runs on your own PC, maybe it needs to be set 1")
+    parser.add_argument("--num_workers", type=int, default=2, help="If the program runs on your own PC, maybe it needs to be set 0")
     parser.add_argument("--language_dataset",type=str,default='chinese',help="According the language you choose to process data")
     # 解析参数
     args = parser.parse_args()
@@ -53,7 +53,7 @@ def main():
     if opt.language_dataset == 'chinese':
         # 数据预处理
         print("Processing data...")
-        trainset, testset, n_classes, n_tokens = Processing_dataChin("D:/vdcnn-reimplementation", '', opt.maxlen_c,
+        trainset, testset, n_classes, n_tokens = Processing_dataChin("datasets/chinese", '', opt.maxlen_c,
                                                                      opt.lmdb_nthreads)
         # 创建模型
         print("Creating model...")
